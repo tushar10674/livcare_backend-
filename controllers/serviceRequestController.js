@@ -18,6 +18,18 @@ const createServiceRequest = async (req, res, next) => {
   try {
     const { productId, priority } = req.body;
 
+    const authenticatedUserId = req.auth?.userId ? String(req.auth.userId) : '';
+    const contact = req.body?.contact && typeof req.body.contact === 'object' ? req.body.contact : null;
+
+    if (!authenticatedUserId) {
+      const fullName = String(contact?.fullName || '').trim();
+      const email = String(contact?.email || '').trim();
+      const mobile = String(contact?.mobile || '').trim();
+      if (!fullName || !email || !mobile) {
+        return next(new AppError('Contact details are required', 400));
+      }
+    }
+
     let productSnapshot;
     if (productId) {
       const p = await Product.findById(productId);
@@ -35,7 +47,7 @@ const createServiceRequest = async (req, res, next) => {
 
     const doc = await ServiceRequest.create({
       ...req.body,
-      userId: req.auth.userId,
+      userId: authenticatedUserId || undefined,
       productSnapshot,
       status: 'new',
       priority: normalizedPriority,
@@ -44,21 +56,30 @@ const createServiceRequest = async (req, res, next) => {
       activityTimeline: [
         createActivityEntry({
           type: 'created',
-          actorUserId: req.auth.userId,
-          actorRole: req.auth.role,
+          actorUserId: authenticatedUserId || undefined,
+          actorRole: req.auth?.role,
           status: 'new',
           message: 'Service request created',
+          meta: authenticatedUserId
+            ? undefined
+            : {
+                contact: {
+                  fullName: String(contact?.fullName || '').trim(),
+                  email: String(contact?.email || '').trim(),
+                  mobile: String(contact?.mobile || '').trim(),
+                },
+              },
         }),
       ],
     });
 
-    const owner = await resolveUserRecipient(req.auth.userId);
+    const owner = authenticatedUserId ? await resolveUserRecipient(authenticatedUserId) : null;
     await notifySupportEvent({
       moduleKey: 'service_request',
       eventKey: 'created',
       recordId: doc._id,
-      email: owner?.email,
-      mobile: owner?.mobile,
+      email: owner?.email || String(contact?.email || '').trim() || undefined,
+      mobile: owner?.mobile || String(contact?.mobile || '').trim() || undefined,
       subject: `Service request created: ${doc.type}`,
       body: `Your ${doc.type} request has been submitted successfully.`,
     });

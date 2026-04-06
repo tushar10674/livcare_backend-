@@ -53,7 +53,17 @@ const getPublishedPage = async (req, res, next) => {
 const listPublishedBanners = async (req, res, next) => {
   try {
     const now = new Date();
-    const items = await Banner.find({ status: 'published' })
+    const { slot } = req.query;
+    const filter = { status: 'published' };
+    if (slot) {
+      const normalizedSlot = String(slot || '').trim();
+      if (normalizedSlot) {
+        filter.$or = [{ slot: normalizedSlot }];
+        if (normalizedSlot === 'home') filter.$or.push({ slot: { $exists: false } });
+      }
+    }
+
+    const items = await Banner.find(filter)
       .sort({ sortRank: -1, createdAt: -1 })
       .lean();
 
@@ -68,6 +78,7 @@ const listPublishedBanners = async (req, res, next) => {
     return sendSuccess(res, {
       data: filtered.map((b) => ({
         id: b._id,
+        slot: b.slot || 'home',
         title: b.published?.title ?? b.title ?? '',
         subtitle: b.published?.subtitle ?? b.subtitle ?? '',
         imageUrl: b.published?.imageUrl ?? b.imageUrl,
@@ -440,9 +451,16 @@ const adminDeleteHelp = async (req, res, next) => {
 
 const adminListBanners = async (req, res, next) => {
   try {
-    const { status } = req.query;
+    const { status, slot } = req.query;
     const filter = {};
     if (status) filter.status = status;
+    if (slot) {
+      const normalizedSlot = String(slot || '').trim();
+      if (normalizedSlot) {
+        filter.$or = [{ slot: normalizedSlot }];
+        if (normalizedSlot === 'home') filter.$or.push({ slot: { $exists: false } });
+      }
+    }
     const items = await Banner.find(filter).sort({ updatedAt: -1 }).lean();
     return sendSuccess(res, { data: items });
   } catch (err) {
@@ -452,7 +470,8 @@ const adminListBanners = async (req, res, next) => {
 
 const adminCreateBannerDraft = async (req, res, next) => {
   try {
-    const { title, subtitle, imageUrl, ctaText, ctaLink, sortRank, schedule } = req.body;
+    const { slot, title, subtitle, imageUrl, ctaText, ctaLink, sortRank, schedule } = req.body;
+    const normalizedSlot = String(slot || 'home').trim() || 'home';
 
     const safeDraft = {
       title: title || '',
@@ -463,6 +482,7 @@ const adminCreateBannerDraft = async (req, res, next) => {
     };
 
     const doc = await Banner.create({
+      slot: normalizedSlot,
       title: safeDraft.title,
       subtitle: safeDraft.subtitle,
       imageUrl: safeDraft.imageUrl,
@@ -487,11 +507,12 @@ const adminCreateBannerDraft = async (req, res, next) => {
 const adminUpdateBannerDraft = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, subtitle, imageUrl, ctaText, ctaLink, sortRank, schedule } = req.body;
+    const { slot, title, subtitle, imageUrl, ctaText, ctaLink, sortRank, schedule } = req.body;
 
     const doc = await Banner.findById(id);
     if (!doc) return next(new AppError('Banner not found', 404));
 
+    if (typeof slot !== 'undefined') doc.slot = String(slot || 'home').trim() || 'home';
     if (typeof title !== 'undefined') doc.draft.title = title || '';
     if (typeof subtitle !== 'undefined') doc.draft.subtitle = subtitle || '';
     if (typeof imageUrl !== 'undefined') doc.draft.imageUrl = imageUrl || '';

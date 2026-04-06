@@ -18,11 +18,24 @@ const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL_TO || process.env.SMTP_FROM;
 const createTicket = async (req, res, next) => {
   try {
     const { subject, message, category, priority } = req.body;
+    const authenticatedUserId = req.auth?.userId ? String(req.auth.userId) : '';
+    const contact = req.body?.contact && typeof req.body.contact === 'object' ? req.body.contact : null;
+
+    if (!authenticatedUserId) {
+      const fullName = String(contact?.fullName || '').trim();
+      const email = String(contact?.email || '').trim();
+      const mobile = String(contact?.mobile || '').trim();
+      if (!fullName || !email || !mobile) {
+        return next(new AppError('Contact details are required', 400));
+      }
+    }
+
     const normalizedPriority = normalizeSupportPriority(priority);
     const slaDeadline = computeSlaDeadline({ priority: normalizedPriority });
 
     const ticket = await Ticket.create({
-      userId: req.auth.userId,
+      ...req.body,
+      userId: authenticatedUserId || undefined,
       subject,
       message,
       category,
@@ -34,21 +47,30 @@ const createTicket = async (req, res, next) => {
         createActivityEntry({
           type: 'created',
           status: 'new',
-          actorUserId: req.auth.userId,
-          actorRole: req.auth.role,
+          actorUserId: authenticatedUserId || undefined,
+          actorRole: req.auth?.role,
           message: 'Ticket created',
+          meta: authenticatedUserId
+            ? undefined
+            : {
+                contact: {
+                  fullName: String(contact?.fullName || '').trim(),
+                  email: String(contact?.email || '').trim(),
+                  mobile: String(contact?.mobile || '').trim(),
+                },
+              },
         }),
       ],
     });
 
-    const userRecipient = await resolveUserRecipient(req.auth.userId);
+    const userRecipient = authenticatedUserId ? await resolveUserRecipient(authenticatedUserId) : null;
     await Promise.all([
       notifySupportEvent({
         moduleKey: 'ticket',
         eventKey: 'created',
         recordId: ticket._id,
-        email: userRecipient?.email,
-        mobile: userRecipient?.mobile,
+        email: userRecipient?.email || String(contact?.email || '').trim() || undefined,
+        mobile: userRecipient?.mobile || String(contact?.mobile || '').trim() || undefined,
         subject: `Ticket created: ${subject}`,
         body: `Your support ticket "${subject}" has been created.`,
       }),

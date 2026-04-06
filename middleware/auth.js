@@ -29,6 +29,32 @@ const requireAuth = async (req, res, next) => {
   }
 };
 
+const optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.slice(7).trim();
+    const payload = verifyToken(token, { secret: env.jwtAccessSecret || requireEnv('JWT_SECRET') });
+
+    const user = await User.findById(payload.sub).select('-password');
+    if (!user) return next();
+
+    if (!user.isActive || user.deletedAt) {
+      return next();
+    }
+
+    req.user = user;
+    req.auth = { userId: user._id.toString(), role: payload.role || user.role };
+
+    return next();
+  } catch (err) {
+    return next();
+  }
+};
+
 const requireRole = (...roles) => {
   return (req, res, next) => {
     const role = req.auth?.role || req.user?.role;
@@ -38,4 +64,4 @@ const requireRole = (...roles) => {
   };
 };
 
-module.exports = { requireAuth, requireRole };
+module.exports = { requireAuth, optionalAuth, requireRole };

@@ -21,7 +21,14 @@ const activitySchema = new mongoose.Schema(
 
 const serviceRequestSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+
+    contact: {
+      fullName: { type: String, trim: true },
+      email: { type: String, trim: true, lowercase: true },
+      mobile: { type: String, trim: true },
+      organization: { type: String, trim: true },
+    },
 
     type: { type: String, enum: ['installation', 'amc', 'service'], required: true, index: true },
 

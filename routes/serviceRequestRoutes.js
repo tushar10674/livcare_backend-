@@ -1,8 +1,8 @@
 const express = require('express');
 const { body, param } = require('express-validator');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
-const { authenticatedSupportWriteLimiter } = require('../middleware/supportRateLimit');
+const { authenticatedSupportWriteLimiter, publicSupportCreateLimiter } = require('../middleware/supportRateLimit');
 const { SUPPORT_STATUSES, SUPPORT_PRIORITIES } = require('../utils/supportWorkflow');
 const {
   createServiceRequest,
@@ -16,8 +16,8 @@ const router = express.Router();
 
 router.post(
   '/',
-  requireAuth,
-  authenticatedSupportWriteLimiter,
+  optionalAuth,
+  publicSupportCreateLimiter,
   [
     body('type').isIn(['installation', 'amc', 'service']).withMessage('type is required'),
     body('productId').optional().isMongoId(),
@@ -28,6 +28,11 @@ router.post(
     body('address.city').isString().trim().isLength({ min: 2 }).withMessage('address.city is required'),
     body('address.state').isString().trim().isLength({ min: 2 }).withMessage('address.state is required'),
     body('address.pincode').isString().trim().isLength({ min: 4 }).withMessage('address.pincode is required'),
+    body('contact').optional().isObject(),
+    body('contact.fullName').optional().isString().trim().isLength({ min: 2 }),
+    body('contact.email').optional().isEmail().normalizeEmail(),
+    body('contact.mobile').optional().isString().trim().isLength({ min: 8 }),
+    body('contact.organization').optional().isString().trim(),
     body('notes').optional().isString().trim(),
     body('priority').optional().isIn(SUPPORT_PRIORITIES).withMessage('invalid priority'),
   ],

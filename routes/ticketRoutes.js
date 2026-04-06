@@ -1,8 +1,8 @@
 const express = require('express');
 const { body, param } = require('express-validator');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
-const { authenticatedSupportWriteLimiter } = require('../middleware/supportRateLimit');
+const { authenticatedSupportWriteLimiter, publicSupportCreateLimiter } = require('../middleware/supportRateLimit');
 const { SUPPORT_STATUSES, SUPPORT_PRIORITIES } = require('../utils/supportWorkflow');
 const {
   createTicket,
@@ -19,13 +19,18 @@ const router = express.Router();
 // My tickets
 router.post(
   '/',
-  requireAuth,
-  authenticatedSupportWriteLimiter,
+  optionalAuth,
+  publicSupportCreateLimiter,
   [
     body('subject').isString().trim().isLength({ min: 3 }).withMessage('subject is required'),
     body('message').isString().trim().isLength({ min: 5 }).withMessage('message is required'),
     body('category').optional().isIn(['support', 'installation', 'amc', 'service', 'billing', 'other']),
     body('priority').optional().isIn(SUPPORT_PRIORITIES),
+    body('contact').optional().isObject(),
+    body('contact.fullName').optional().isString().trim().isLength({ min: 2 }),
+    body('contact.email').optional().isEmail().normalizeEmail(),
+    body('contact.mobile').optional().isString().trim().isLength({ min: 8 }),
+    body('contact.organization').optional().isString().trim(),
   ],
   validate,
   createTicket,

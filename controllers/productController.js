@@ -34,6 +34,17 @@ const parseMultiValue = (value) => {
 
 const sanitizeString = (value) => String(value || '').trim();
 
+const normalizeCategoryLabel = (value) => {
+  const raw = sanitizeString(value);
+  if (!raw) return '';
+  const collapsed = raw.replace(/\s+/g, ' ');
+  const key = collapsed.toLowerCase();
+  if (key === 'ics') return 'ICU';
+  if (key === 'icu') return 'ICU';
+  if (key === 'icu equipment') return 'ICU Equipment';
+  return collapsed;
+};
+
 const sanitizeProductPayload = (payload = {}, { partial = false } = {}) => {
   const input = payload && typeof payload === 'object' ? payload : {};
   const out = {};
@@ -250,9 +261,21 @@ const getProductMeta = async (req, res, next) => {
       Product.distinct('stock', { stock: { $ne: null }, visible: true }),
     ]);
 
+    const normalizedCategories = [];
+    const seenCategoryKeys = new Set();
+    (Array.isArray(categories) ? categories : [])
+      .map((entry) => normalizeCategoryLabel(entry))
+      .filter(Boolean)
+      .forEach((label) => {
+        const dedupeKey = label.toLowerCase();
+        if (seenCategoryKeys.has(dedupeKey)) return;
+        seenCategoryKeys.add(dedupeKey);
+        normalizedCategories.push(label);
+      });
+
     return sendSuccess(res, {
       data: {
-        categories: categories.filter(Boolean).sort(),
+        categories: normalizedCategories.sort((a, b) => a.localeCompare(b)),
         brands: brands.filter(Boolean).sort(),
         purchaseTypes: modes.filter(Boolean).sort(),
         availability: stockStatuses.filter(Boolean).sort(),

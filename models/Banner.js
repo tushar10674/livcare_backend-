@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const bannerSchema = new mongoose.Schema(
   {
+    slot: { type: String, trim: true, default: 'home', index: true },
     title: { type: String, trim: true, default: '' },
     subtitle: { type: String, trim: true, default: '' },
     imageUrl: { type: String, required: true, trim: true },
@@ -41,5 +42,6 @@ const bannerSchema = new mongoose.Schema(
 );
 
 bannerSchema.index({ status: 1, sortRank: -1, createdAt: -1 });
+bannerSchema.index({ slot: 1, status: 1, sortRank: -1, createdAt: -1 });
 
 module.exports = mongoose.model('Banner', bannerSchema);

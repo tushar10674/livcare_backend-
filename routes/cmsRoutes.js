@@ -193,6 +193,7 @@ router.put(
   requireAuth,
   requireRole('admin'),
   [
+    body('slot').optional().isString().trim().isLength({ min: 2 }),
     body('imageUrl').isString().trim().isLength({ min: 3 }),
     body('title').optional().isString(),
     body('subtitle').optional().isString(),
@@ -211,6 +212,7 @@ router.post(
   requireAuth,
   requireRole('admin'),
   [
+    body('slot').optional().isString().trim().isLength({ min: 2 }),
     body('imageUrl').isString().trim().isLength({ min: 3 }),
     body('title').optional().isString(),
     body('subtitle').optional().isString(),
@@ -230,6 +232,7 @@ router.put(
   requireRole('admin'),
   [
     param('id').isMongoId(),
+    body('slot').optional().isString().trim().isLength({ min: 2 }),
     body('imageUrl').optional().isString().trim().isLength({ min: 3 }),
     body('title').optional().isString(),
     body('subtitle').optional().isString(),
@@ -249,6 +252,7 @@ router.patch(
   requireRole('admin'),
   [
     param('id').isMongoId(),
+    body('slot').optional().isString().trim().isLength({ min: 2 }),
     body('imageUrl').optional().isString().trim().isLength({ min: 3 }),
     body('title').optional().isString(),
     body('subtitle').optional().isString(),
