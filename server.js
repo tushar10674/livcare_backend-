@@ -263,33 +263,11 @@ const bootstrap = async () => {
 
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-  const frontendBuildDir = path.join(__dirname, '..', 'frontend', 'build');
-  const adminBuildDir = path.join(__dirname, '..', 'admin', 'build');
-  const frontendIndexFile = path.join(frontendBuildDir, 'index.html');
-  const adminIndexFile = path.join(adminBuildDir, 'index.html');
-
-  if (env.nodeEnv === 'production') {
-    app.use(express.static(frontendBuildDir));
-    app.use('/admin', express.static(adminBuildDir));
-  }
+  app.get('/', (req, res) => {
+    res.send('API is running...');
+  });
 
   app.use('/api', apiRoutes);
-
-  if (env.nodeEnv === 'production') {
-    app.get('/admin/*', (req, res, next) => {
-      if (req.method !== 'GET') return next();
-      if (!req.accepts('html')) return next();
-      return res.sendFile(adminIndexFile);
-    });
-
-    app.get('*', (req, res, next) => {
-      if (req.method !== 'GET') return next();
-      if (req.path.startsWith('/api')) return next();
-      if (req.path.startsWith('/uploads')) return next();
-      if (!req.accepts('html')) return next();
-      return res.sendFile(frontendIndexFile);
-    });
-  }
 
   app.use(notFound);
   app.use(errorHandler);
